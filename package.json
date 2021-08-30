@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "nodemon server/server.js",
     "start": "node server/server.js",
+    "heroku-postbuild": "cd webapp && npm install && npm install --only=dev --no-shrinkwrap && npm run build",
     "check-coverage": "nyc report --check-coverage --lines 100",
     "lint": "eslint --ignore-path .gitignore .",
     "fix": "eslint --ignore-path .gitignore . --fix",

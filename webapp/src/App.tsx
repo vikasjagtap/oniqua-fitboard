@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.scss';
-import {MapContainer, Marker, Popup, TileLayer} from 'react-leaflet';
-import L, {LatLng, LatLngLiteral, Map as LeafletMap, Polyline} from "leaflet";
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import L, { LatLng, LatLngLiteral, Map as LeafletMap, Polyline } from "leaflet";
 import {
     Content,
     ContentSwitcher,
@@ -22,8 +22,8 @@ import {
     TableHeader,
     TableRow
 } from "carbon-components-react";
-import {DonutChart, StackedAreaChart} from "@carbon/charts-react";
-import {Alignments, DonutChartOptions, AreaChartOptions, ScaleTypes} from '@carbon/charts/interfaces';
+import { DonutChart, TreemapChart } from "@carbon/charts-react";
+import { Alignments, AreaChartOptions, DonutChartOptions, ScaleTypes } from '@carbon/charts/interfaces';
 
 type AppStateProps = {
     overallData: any,
@@ -35,11 +35,13 @@ type AppStateProps = {
     dataLoading: boolean,
     distanceUnit: DistanceUnit,
     tableHeaders: any[],
+    treeMapData: any,
     areaChartData: any,
     areaUsData: any,
     areaAustraliaData: any,
     areaOverallData: any,
     selectedContentIndex: number,
+    selectedCatIndex: number,
     areaChartOptions: any
 }
 
@@ -73,10 +75,12 @@ class App extends React.Component<any, AppStateProps> {
             areaChartData: [],
             donutChartOptions: App.getDonutChartOptions(true),
             areaChartOptions: App.getAreaChartOptions(true),
+            treeMapData: [],
             donutChartData: [],
             distanceUnit: DistanceUnit.KM,
             tableHeaders: this.getTableHeaders(DistanceUnit.KM),
-            selectedContentIndex: 0
+            selectedContentIndex: 0,
+            selectedCatIndex: 0,
         };
     }
 
@@ -162,22 +166,21 @@ class App extends React.Component<any, AppStateProps> {
         const areaAustraliaData = this.data.australia.raw.map((row: any) => {
             return {
                 group: row.name,
+                name: row.name,
+                showLabel: true,
                 date: new Date(row.date),
                 value: row[distanceColumn]
             };
         }).sort(dateCompareFn);
-
-        areaAustraliaData.forEach((row: any)=> {
-            if (row.group === 'ravi') {
-                console.log(row);
-            }
-        })
 
         const areaOverallData = [...areaAustraliaData, ...areaUsData].sort(dateCompareFn);
 
         const distanceCompareFn = (a:any, b:any) => (a[distanceColumn] < b[distanceColumn]) ? 1 : ((b[distanceColumn] < a[distanceColumn]) ? -1 : 0);
 
         let overallData = [...this.data.us.individual, ...this.data.australia.individual].sort(distanceCompareFn);
+
+        const treeMapData = this.getTreemapData("distance");
+
         this.setState({
             dataLoading: false,
             overallData: overallData,
@@ -195,12 +198,15 @@ class App extends React.Component<any, AppStateProps> {
             areaAustraliaData,
             areaOverallData,
             areaChartData: areaOverallData,
+            treeMapData,
             areaChartOptions: App.getAreaChartOptions(false),
-            selectedContentIndex: 0
+            selectedContentIndex: 0,
+            selectedCatIndex: 0
         });
     }
 
     private static getDonutChartOptions(loading: boolean): DonutChartOptions {
+
         return {
             height: "400px",
             width: "100%",
@@ -251,11 +257,18 @@ class App extends React.Component<any, AppStateProps> {
                 header: 'Latest Date'
             },
             {
+                key: 'activities',
+                header: '# Activities',
+                align: "end",
+            },
+            {
                 key: `distance_${unit}`,
+                align: "end",
                 header: 'Distance',
             },
             {
                 key: 'time',
+                align: "end",
                 header: 'Time (min)',
             },
         ]
@@ -308,7 +321,19 @@ class App extends React.Component<any, AppStateProps> {
                         </MapContainer>
                     </div>
                     <div className={"stats"}>
-                        <ContentSwitcher selectedIndex={this.state.selectedContentIndex} className={"table-data-switcher"} onChange={(data) => {
+                        <ContentSwitcher selectedIndex={this.state.selectedCatIndex} className={"data-switcher treemap-data-switcher"} onChange={(data) => {
+
+                            this.setState({treeMapData: this.getTreemapData(data.name?.toString())});
+
+                        }}>
+                            <Switch name="distance" text="Distance"/>
+                            <Switch name="time" text="Time"/>
+                            <Switch name="activities" text="Activities"/>
+                        </ContentSwitcher>
+                        <div className={"area-chart-container"}>
+                            <TreemapChart data={this.state.treeMapData} options={this.state.areaChartOptions}/>
+                        </div>
+                        <ContentSwitcher selectedIndex={this.state.selectedContentIndex} className={"data-switcher table-data-switcher"} onChange={(data) => {
                             let tableData: any;
                             let areaData: any;
                             switch (data.name) {
@@ -333,9 +358,6 @@ class App extends React.Component<any, AppStateProps> {
                             <Switch name="australia" text="Australia"/>
                             <Switch name="us" text="US"/>
                         </ContentSwitcher>
-                        <div className={"area-chart-container"}>
-                            <StackedAreaChart data={this.state.areaChartData} options={this.state.areaChartOptions}/>
-                        </div>
                         <div className={"table-container"}>
                             {
                                 this.state.dataLoading ? <DataTableSkeleton showHeader={false} showToolbar={false} headers={this.state.tableHeaders} /> :
@@ -348,7 +370,7 @@ class App extends React.Component<any, AppStateProps> {
                                                 <TableHead>
                                                     <TableRow>
                                                         {headers.map((header: any) => (
-                                                            <TableHeader key={header.key} {...getHeaderProps({header})}>
+                                                            <TableHeader className={App.getClassName(header.key)} key={header.key} {...getHeaderProps({header})}>
                                                                 {header.header}
                                                             </TableHeader>
                                                         ))}
@@ -359,6 +381,7 @@ class App extends React.Component<any, AppStateProps> {
                                                         <TableRow key={row.id} {...getRowProps({row})}>
                                                             {row.cells.map((cell: any) => {
                                                                 let cellValue;
+                                                                let className= App.getClassName(cell.info.header);
                                                                 switch (cell.info.header) {
                                                                     case 'distance_km':
                                                                     case 'distance_miles':
@@ -373,7 +396,7 @@ class App extends React.Component<any, AppStateProps> {
                                                                         cellValue = cell.value;
                                                                 }
 
-                                                                return <TableCell key={cell.id}>{cellValue}</TableCell>
+                                                                return <TableCell className={className} key={cell.id}>{cellValue}</TableCell>
                                                             })}
                                                         </TableRow>
                                                     ))}
@@ -390,6 +413,41 @@ class App extends React.Component<any, AppStateProps> {
                 </Content>
             </div>
         );
+    }
+
+    private static getClassName(header: string) {
+        switch (header) {
+            case 'distance_km':
+            case 'distance_miles':
+            case 'time':
+            case 'activities':
+            case 'date':
+            return "number-cell";
+            default:
+                return "";
+        }
+    }
+
+    private getTreemapData(type?: string) {
+        if (!type) {
+            return [];
+        }
+        let prop: string = type === "distance" ?  `distance_${this.state.distanceUnit}` : type;
+
+        return [
+            {
+                name: "Australia",
+                children: this.data.australia.individual.map((row: any) => {
+                    return {name: row.name, value: row[prop], showLabel: true}
+                })
+            },
+            {
+                name: "US",
+                children: this.data.us.individual.map((row: any) => {
+                    return {name: row.name, value: row[prop], showLabel: true}
+                })
+            },
+        ]
     }
 }
 

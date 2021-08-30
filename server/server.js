@@ -19,7 +19,7 @@ const app = express();
 // enable parsing of http request body
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "..", "webapp", "build")));
 
 // routes and api calls
 app.use('/health', healthRoutes);
@@ -30,7 +30,7 @@ app.use('/health', healthRoutes);
 // });
 
 app.get('/api/dashboard', async function (req, res) {
-    await Promise.all([getProgress('US', 4, 3, 'M/d/yyyy', 'UTC-6'), getProgress('Australia', 3, 4, 'd/M/yyyy', 'UTC+10')])
+  await Promise.all([getProgress('US', 4, 3, 'M/d/yyyy', 'UTC-6'), getProgress('Australia', 3, 4, 'd/M/yyyy', 'UTC+10')])
         .then(results => {
             let progress = {...results[0], ...results[1]};
             res.send(progress)
@@ -61,6 +61,7 @@ function getProgress(region, distanceKmCol, distanceMilesCol, dateFormat, timezo
             let totalTime = 0;
             let totalDistance_km = 0;
             let totalDistance_miles = 0;
+            let totalActivities = 0;
 
             const rawData = response.data.values
                 .map(row => ({
@@ -77,10 +78,12 @@ function getProgress(region, distanceKmCol, distanceMilesCol, dateFormat, timezo
                     totalTime += row.time;
                     totalDistance_km += row.distance_km;
                     totalDistance_miles += row.distance_miles;
+                    totalActivities++;
                     if (individual.hasOwnProperty(row.name)) {
                         individual[row.name].time += row.time;
                         individual[row.name].distance_km += row.distance_km;
                         individual[row.name].distance_miles += row.distance_miles;
+                        individual[row.name].activities++;
                         if (individual[row.name].date < row.date) {
                             individual[row.name].date = row.date;
                         }
@@ -91,7 +94,8 @@ function getProgress(region, distanceKmCol, distanceMilesCol, dateFormat, timezo
                             name: row.name,
                             time: row.time,
                             distance_km: row.distance_km,
-                            distance_miles: row.distance_miles
+                            distance_miles: row.distance_miles,
+                            activities: 1
                         }
                     }
                 });
@@ -116,9 +120,11 @@ app.listen(port, () => {
     console.log(`App UI available http://localhost:${port}`);
 });
 
-// error handler for unmatched routes or api calls
-app.use((req, res, next) => {
-    res.sendStatus(404);
-});
+if (process.env.NODE_ENV === 'production') {
+  // Handle React routing, return all requests to React app
+  app.get('*', function(req, res) {
+    res.sendFile(path.join(__dirname, 'webapp/build', 'index.html'));
+  });
+}
 
 module.exports = app;
