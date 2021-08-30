@@ -1,0 +1,69 @@
+{
+  "name": "oniqua-fit-board",
+  "version": "1.0.0",
+  "description": "Oniqua Fit-board",
+  "private": true,
+  "engines": {
+    "node": "^14.0.0"
+  },
+  "scripts": {
+    "dev": "nodemon server/server.js",
+    "start": "node server/server.js",
+    "check-coverage": "nyc report --check-coverage --lines 100",
+    "lint": "eslint --ignore-path .gitignore .",
+    "fix": "eslint --ignore-path .gitignore . --fix",
+    "test": "nyc mocha test --recursive --exit"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint && npm run test && npm run check-coverage"
+    }
+  },
+  "nyc": {
+    "check-coverage": true,
+    "per-file": true,
+    "lines": 100,
+    "statements": 100,
+    "functions": 100,
+    "branches": 100,
+    "exclude": [
+      "test"
+    ],
+    "reporter": [
+      "lcov",
+      "text-summary"
+    ]
+  },
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "ibm-cloud-env": "^0",
+    "axios": "^0.21.1",
+    "cookie-parser": "~1.4.4",
+    "cors": "^2.8.5",
+    "debug": "~2.6.9",
+    "dotenv": "^10.0.0",
+    "http-errors": "~1.6.3",
+    "lodash": "^4.17.15",
+    "luxon": "^1.27.0",
+    "md5": "^2.2.1",
+    "morgan": "~1.9.1",
+    "node-sass-middleware": "0.11.0",
+    "node-uuid": "^1.4.8",
+    "nodemon": "^2.0.3",
+    "pug": "2.0.0-beta11",
+    "react-uid": "^2.2.0"
+  },
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "eslint": "^7.29.0",
+    "eslint-config-strongloop": "^2.1.0",
+    "husky": "^6.0.0",
+    "mocha": "^9.0.1",
+    "nodemon": "^2.0.7",
+    "nyc": "^15.1.0",
+    "sinon": "^11.1.1",
+    "sinon-chai": "^3.7.0",
+    "supertest": "^6.1.3"
+  }
+}
